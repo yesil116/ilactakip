@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <!-- Mobil uyum için viewport meta etiketi -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>İlaç Stok Takip ve Giriş Sistemi (Mobil Uyumlu)</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px auto;
+      max-width: 800px;
+      background: #fafafa;
+      padding: 20px;
+      border-radius: 8px;
+    }
+    h1, h2 {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    .login-container, .app-container {
+      display: none; /* Varsayılan olarak kapalı. JavaScript ile yönetilecek. */
+    }
+    .active {
+      display: block;
+    }
+    form {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+    form label {
+      flex: 0 0 140px;
+      font-weight: bold;
+    }
+    form input {
+      flex: 1;
+      padding: 6px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+    }
+    form button {
+      flex: 0 0 auto;
+      padding: 8px 15px;
+      border: none;
+      border-radius: 4px;
+      background: #4CAF50;
+      color: white;
+      cursor: pointer;
+      font-weight: bold;
+    }
+    form button:hover {
+      background: #45a049;
+    }
+    #searchBar {
+      margin-bottom: 10px;
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+    }
+    #searchBar input {
+      flex: 1;
+      padding: 6px;
+      border-radius: 4px;
+      border: 1px solid #ccc;
+    }
+    /* Tablonun taşmasını önlemek için kapsayıcıya yatay scroll ekliyoruz */
+    .table-container {
+      width: 100%;
+      overflow-x: auto;  /* Mobilde tablo taşarsa yatay kaydırma */
+      background-color: #ffffff;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+    }
+    #stockTable {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 600px; /* Min. genişlik, kolonları dar ekranlarda kaydırma ile gösterir */
+    }
+    #stockTable, th, td {
+      border: 1px solid #ddd;
+    }
+    th, td {
+      text-align: left;
+      padding: 8px;
+    }
+    th {
+      background-color: #f2f2f2;
+    }
+    .btn {
+      border: none;
+      border-radius: 4px;
+      padding: 6px 12px;
+      cursor: pointer;
+      color: white;
+      font-weight: bold;
+    }
+    .edit-btn {
+      background-color: #ff9800;
+    }
+    .edit-btn:hover {
+      background-color: #cc7a00;
+    }
+    .delete-btn {
+      background-color: #f44336;
+    }
+    .delete-btn:hover {
+      background-color: #e60000;
+    }
+    .save-btn {
+      background-color: #2196F3;
+    }
+    .save-btn:hover {
+      background-color: #0b7dda;
+    }
+    .logout-btn {
+      background-color: #9e9e9e;
+      float: right;
+      margin-top: -10px;
+      margin-right: -10px;
+    }
+    .logout-btn:hover {
+      background-color: #757575;
+    }
+    #totalStock {
+      font-size: 1.2em;
+      font-weight: bold;
+      margin-top: 20px;
+    }
+    /* Login formu stilleri */
+    .login-form {
+      width: 300px;
+      margin: 0 auto;
+      background: #ffffff;
+      padding: 20px;
+      border-radius: 8px;
+      border: 1px solid #ddd;
+    }
+    .login-form label {
+      flex: 0 0 100px;
+    }
+    .login-form button {
+      width: 100%;
+      margin-top: 10px;
+      background: #2196F3;
+    }
+    .login-form button:hover {
+      background: #0b7dda;
+    }
+    /* Basit mobil uyum için media query (600px altı ekranlarda) */
+    @media (max-width: 600px) {
+      form label {
+        flex: 0 0 100%;
+      }
+      form input, form button {
+        flex: 1 0 100%;
+      }
+      #searchBar {
+        flex-direction: column;
+      }
+      #searchBar button {
+        width: 100%;
+      }
+      /* Tablo ve yazılar biraz küçülsün */
+      th, td {
+        font-size: 0.9em;
+        padding: 6px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <h1>İlaç Stok Takip Programı (Mobil Uyumlu)</h1>
+
+  <!-- Giriş Formu Bölümü -->
+  <div class="login-container" id="loginContainer">
+    <h2>Lütfen Giriş Yapın</h2>
+    <div class="login-form">
+      <form id="loginForm">
+        <label for="username">Kullanıcı Adı:</label>
+        <input type="text" id="username" required />
+
+        <label for="password">Şifre:</label>
+        <input type="password" id="password" required />
+
+        <button type="submit">Giriş Yap</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Asıl Uygulama Bölümü -->
+  <div class="app-container" id="appContainer">
+    <button class="btn logout-btn" id="logoutBtn">Çıkış Yap</button>
+    <h2>Stok Yönetimi</h2>
+    
+    <!-- Kayıt Ekleme Formu -->
+    <form id="stockForm">
+      <label for="drugName">İlaç Adı:</label>
+      <input type="text" id="drugName" required />
+
+      <label for="quantity">Stok Miktarı:</label>
+      <input type="number" id="quantity" min="0" required />
+
+      <label for="expiryDate">Son Kullanma Tarihi:</label>
+      <input type="date" id="expiryDate" />
+
+      <label for="storageLocation">Depo / Konum:</label>
+      <input type="text" id="storageLocation" placeholder="Depo, dolap veya raf ismi" />
+
+      <button type="submit">Ekle</button>
+    </form>
+
+    <!-- Arama Kutusu (İlaç Adı + Depo/Konum) -->
+    <div id="searchBar">
+      <input type="text" id="searchInput" placeholder="İlaç adı veya Depo / Konum ara..." />
+      <button class="btn save-btn" id="searchBtn">Ara</button>
+      <button class="btn" id="clearSearchBtn" style="background-color:#9e9e9e;">Temizle</button>
+    </div>
+
+    <!-- Tabloyu yatay scroll kapsayıcısına aldık -->
+    <div class="table-container">
+      <table id="stockTable">
+        <thead>
+          <tr>
+            <th>İlaç Adı</th>
+            <th>Stok Miktarı</th>
+            <th>Son Kullanma Tarihi</th>
+            <th>Depo / Konum</th>
+            <th>Düzenle</th>
+            <th>Sil</th>
+          </tr>
+        </thead>
+        <tbody id="stockTableBody">
+          <!-- Kayıtlı ilaçlar burada listelenecek -->
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Toplam Stok Bilgisi -->
+    <div id="totalStock"></div>
+  </div>
+
+  <script>
+    /************************************************
+     *   BASİT KULLANICI GİRİŞİ (LOGIN) YÖNETİMİ    *
+     ***********************************************/
+    const DEFAULT_USERNAME = "admin";   // Varsayılan kullanıcı adı
+    const DEFAULT_PASSWORD = "12345";   // Varsayılan şifre
+    const LOGIN_STORAGE_KEY = "loggedIn"; 
+
+    const loginContainer = document.getElementById("loginContainer");
+    const appContainer = document.getElementById("appContainer");
+    const loginForm = document.getElementById("loginForm");
+    const logoutBtn = document.getElementById("logoutBtn");
+
+    // Sayfa ilk açıldığında oturum kontrolü
+    window.addEventListener("DOMContentLoaded", () => {
+      checkLoginStatus();
+    });
+
+    // Giriş formunun gönderilmesi
+    loginForm.addEventListener("submit", (e) => {
+      e.preventDefault();
+      const username = document.getElementById("username").value.trim();
+      const password = document.getElementById("password").value.trim();
+
+      // Basit kontrol (gerçekte sunucu tarafında yapılmalı)
+      if (username === DEFAULT_USERNAME && password === DEFAULT_PASSWORD) {
+        localStorage.setItem(LOGIN_STORAGE_KEY, "true");  // Oturum açıldığını sakla
+        checkLoginStatus();
+      } else {
+        alert("Kullanıcı adı veya şifre hatalı!");
+      }
+    });
+
+    // Çıkış yap butonuna tıklanınca
+    logoutBtn.addEventListener("click", () => {
+      localStorage.removeItem(LOGIN_STORAGE_KEY);
+      checkLoginStatus();
+    });
+
+    // Oturum durumunu kontrol eden fonksiyon
+    function checkLoginStatus() {
+      const loggedIn = localStorage.getItem(LOGIN_STORAGE_KEY);
+      if (loggedIn === "true") {
+        loginContainer.classList.remove("active");
+        appContainer.classList.add("active");
+      } else {
+        loginContainer.classList.add("active");
+        appContainer.classList.remove("active");
+      }
+    }
+
+    /************************************************
+     *    İLAÇ STOK UYGULAMASI (LOCALSTORAGE)       *
+     ***********************************************/
+    const STORAGE_KEY = "ilacStokListesi";
+
+    // Form elemanları
+    const stockForm = document.getElementById("stockForm");
+    const drugNameInput = document.getElementById("drugName");
+    const quantityInput = document.getElementById("quantity");
+    const expiryDateInput = document.getElementById("expiryDate");
+    const storageLocationInput = document.getElementById("storageLocation");
+
+    // Tablo ve arama elemanları
+    const stockTableBody = document.getElementById("stockTableBody");
+    const searchInput = document.getElementById("searchInput");
+    const searchBtn = document.getElementById("searchBtn");
+    const clearSearchBtn = document.getElementById("clearSearchBtn");
+    const totalStockDiv = document.getElementById("totalStock");
+
+    // Local Storage'dan listeyi yükle
+    let ilacListesi = JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
+
+    // Form gönderildiğinde (Yeni İlaç Ekle)
+    stockForm.addEventListener("submit", (e) => {
+      e.preventDefault();
+
+      const drugName = drugNameInput.value.trim();
+      const quantity = parseInt(quantityInput.value);
+      const expiryDate = expiryDateInput.value;
+      const storageLocation = storageLocationInput.value.trim();
+
+      if (!drugName || isNaN(quantity)) {
+        alert("Lütfen geçerli bir ilaç adı ve stok miktarı girin.");
+        return;
+      }
+
+      // Yeni kayıt nesnesi
+      const yeniKayit = {
+        id: Date.now(),
+        drugName,
+        quantity,
+        expiryDate,
+        storageLocation
+      };
+
+      ilacListesi.push(yeniKayit);
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(ilacListesi));
+
+      // Tabloyu güncelle, formu sıfırla
+      tabloyuGuncelle();
+      stockForm.reset();
+    });
+
+    // Arama Butonuna Tıklanınca (ilaç adı veya depo/konum)
+    searchBtn.addEventListener("click", () => {
+      const searchTerm = searchInput.value.trim().toLowerCase();
+      if (!searchTerm) {
+        tabloyuGuncelle();
+        return;
+      }
+      // Arama metni hem ilac adında hem de depo/konum alanında aranır
+      const filtered = ilacListesi.filter(kayit => 
+        kayit.drugName.toLowerCase().includes(searchTerm) ||
+        (kayit.storageLocation && kayit.storageLocation.toLowerCase().includes(searchTerm))
+      );
+      tabloyuGuncelle(filtered);
+    });
+
+    // Temizle Butonuna Tıklanınca
+    clearSearchBtn.addEventListener("click", () => {
+      searchInput.value = "";
+      tabloyuGuncelle();
+    });
+
+    // Kayıt silme fonksiyonu
+    function ilacSil(id) {
+      ilacListesi = ilacListesi.filter(kayit => kayit.id !== id);
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(ilacListesi));
+      tabloyuGuncelle();
+    }
+
+    // Kayıt düzenleme fonksiyonu
+    function duzenleKayit(id) {
+      const kayitIndex = ilacListesi.findIndex(k => k.id === id);
+      if (kayitIndex === -1) return;
+      const kayit = ilacListesi[kayitIndex];
+
+      // Düzenlenecek alanları prompt ile alıyoruz
+      const yeniIlacAdi = prompt("İlaç Adı:", kayit.drugName);
+      if (yeniIlacAdi === null) return;
+      const yeniMiktar = prompt("Stok Miktarı:", kayit.quantity);
+      if (yeniMiktar === null) return;
+      const yeniTarih = prompt("Son Kullanma Tarihi (YYYY-MM-DD):", kayit.expiryDate);
+      if (yeniTarih === null) return;
+      const yeniDepo = prompt("Depo / Konum:", kayit.storageLocation);
+      if (yeniDepo === null) return;
+
+      kayit.drugName = yeniIlacAdi.trim() || kayit.drugName;
+      kayit.quantity = parseInt(yeniMiktar) || kayit.quantity;
+      kayit.expiryDate = yeniTarih.trim() || kayit.expiryDate;
+      kayit.storageLocation = yeniDepo.trim() || kayit.storageLocation;
+
+      ilacListesi[kayitIndex] = kayit;
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(ilacListesi));
+      tabloyuGuncelle();
+    }
+
+    // Tabloyu güncelleme fonksiyonu
+    function tabloyuGuncelle(filteredList = null) {
+      const listToRender = filteredList || ilacListesi;
+      stockTableBody.innerHTML = "";
+
+      listToRender.forEach((kayit) => {
+        const row = document.createElement("tr");
+
+        // İLAÇ ADI
+        const drugNameTd = document.createElement("td");
+        drugNameTd.textContent = kayit.drugName;
+
+        // STOK MİKTARI
+        const quantityTd = document.createElement("td");
+        quantityTd.textContent = kayit.quantity;
+
+        // SON KULLANMA TARİHİ
+        const expiryDateTd = document.createElement("td");
+        expiryDateTd.textContent = kayit.expiryDate ? kayit.expiryDate : "-";
+
+        // DEPO / KONUM
+        const storageLocationTd = document.createElement("td");
+        storageLocationTd.textContent = kayit.storageLocation || "-";
+
+        // DÜZENLE BUTONU
+        const editTd = document.createElement("td");
+        const editBtn = document.createElement("button");
+        editBtn.textContent = "Düzenle";
+        editBtn.className = "btn edit-btn";
+        editBtn.addEventListener("click", () => {
+          duzenleKayit(kayit.id);
+        });
+        editTd.appendChild(editBtn);
+
+        // SİL BUTONU
+        const deleteTd = document.createElement("td");
+        const deleteBtn = document.createElement("button");
+        deleteBtn.textContent = "Sil";
+        deleteBtn.className = "btn delete-btn";
+        deleteBtn.addEventListener("click", () => {
+          ilacSil(kayit.id);
+        });
+        deleteTd.appendChild(deleteBtn);
+
+        // Satıra ekle
+        row.appendChild(drugNameTd);
+        row.appendChild(quantityTd);
+        row.appendChild(expiryDateTd);
+        row.appendChild(storageLocationTd);
+        row.appendChild(editTd);
+        row.appendChild(deleteTd);
+
+        stockTableBody.appendChild(row);
+      });
+
+      toplamStokHesapla(listToRender);
+    }
+
+    // Toplam stok bilgisi hesaplama
+    function toplamStokHesapla(list) {
+      let toplam = 0;
+      list.forEach(kayit => {
+        toplam += kayit.quantity;
+      });
+      totalStockDiv.textContent = `Toplam Stok: ${toplam}`;
+    }
+
+    // Sayfa yüklendiğinde tabloyu güncelle (login durumuna göre)
+    document.addEventListener("DOMContentLoaded", () => {
+      tabloyuGuncelle();
+    });
+  </script>
+</body>
+</html>
